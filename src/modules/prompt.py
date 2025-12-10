@@ -55,7 +55,7 @@ def generate_prompts(topic_data):
     """
 
     response = client.chat.completions.create(
-        model="gpt-4-turbo", # or gpt-3.5-turbo
+        model="gpt-4o", # Changed from gpt-4-turbo for better availability
         messages=[
             {"role": "system", "content": system_instruction},
             {"role": "user", "content": user_content}
