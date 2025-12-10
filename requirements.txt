@@ -2,7 +2,7 @@ openai
 google-api-python-client
 google-auth-oauthlib
 google-auth-httplib2
-moviepy
+moviepy==1.0.3
 requests
 schedule
 python-dotenv
