@@ -8,3 +8,4 @@ schedule
 python-dotenv
 beautifulsoup4
 feedparser
+pytz
