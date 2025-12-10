@@ -1,8 +1,4 @@
-from moviepy.video.io.VideoFileClip import VideoFileClip
-from moviepy.video.compositing.ConcatenateVideoClip import ConcatenateVideoClip
-from moviepy.video.VideoClip import TextClip, ColorClip
-from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
-from moviepy.audio.io.AudioFileClip import AudioFileClip
+from moviepy.editor import VideoFileClip, ConcatenateVideoClip, TextClip, CompositeVideoClip, AudioFileClip
 import os
 
 def create_final_video(video_paths, subtitle_text, audio_text):
