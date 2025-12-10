@@ -6,8 +6,9 @@ def generate_prompts(topic_data):
     """
     トピックを受け取り、Sora2用のプロンプトとYouTube用のテキストを生成する。
     """
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
+    # client = OpenAI(api_key=os.getenv("OPENAI_API_KEY")) # Comment out OpenAI
+    import requests
+    
     # ユーザー指定の固定プロンプト
     character_prompt = {
         "positive_prompt": "A portrait of a distinct toy poodle character. It has rich red-brown curly fur styled in a fluffy, slightly tousled teddy bear cut. The poodle is wearing oversized round tortoise-shell reading glasses perched on its nose, and a textured mustard-yellow corduroy bowtie. It has a curious, intelligent expression looking directly at the camera. Warm natural lighting, film photography grain, cozy atmosphere, shallow depth of field, highly detailed fur texture.",
@@ -15,22 +16,10 @@ def generate_prompts(topic_data):
     }
 
     system_instruction = """
-    あなたは動画クリエイターのアシスタントです。
-    与えられたニュースやトピックをもとに、以下のJSON形式でデータを出力してください。
+    You are an AI assistant. Output ONLY valid JSON. No markdown, no explanations.
+    Analyze the topic and generate video prompts.
     
-    1. 生成する動画のScene 1とScene 2のプロンプト (英語)
-       - Aspect Ratio: 9:16 (Vertical) for YouTube Shorts.
-       - 必ず指定されたキャラクター設定(Toy Poodle)を含めること。
-       - ニュースの内容を視覚的に表現すること。
-       - Sora2の規約（暴力・性表現禁止）を厳守すること。
-    2. YouTube動画のタイトル (日本語, 30文字以内)
-    3. 動画の説明欄 (日本語)
-    4. 字幕/読み上げ用のスクリプト (日本語)
-       - トイプードルのキャラクターになりきってください。
-       - 「ワン！」「〜だワン」などの語尾を使うこと。
-       - 内容はわかりやすく要約し、60秒以内に収まる長さにする。
-
-    Output JSON Format:
+    Output Format:
     {
         "scene_prompts": [
             {"positive": "...", "negative": "..."},
@@ -44,24 +33,48 @@ def generate_prompts(topic_data):
     """
 
     user_content = f"""
-    Topic Title: {topic_data['title']}
-    Topic Description: {topic_data['description']}
+    Topic: {topic_data['title']}
+    Details: {topic_data['description']}
     
-    Required Character Prompt (Must be included/mixed into the positive prompt):
-    {character_prompt['positive_prompt']}
-    
-    Required Negative Prompt:
-    {character_prompt['negative_prompt']}
+    Character: {character_prompt['positive_prompt']}
+    Constraint: Generate 2 scenes for a YouTube Short (vertical 9:16).
+    Language: Japanese for text, English for prompts.
+    Content: A specific Toy Poodle character explaining the news.
     """
 
-    response = client.chat.completions.create(
-        model="gpt-4o", # Changed from gpt-4-turbo for better availability
-        messages=[
-            {"role": "system", "content": system_instruction},
-            {"role": "user", "content": user_content}
-        ],
-        response_format={"type": "json_object"}
-    )
-
-    result = json.loads(response.choices[0].message.content)
-    return result
+    # Pollinations Text API (GET request strategy)
+    # Adding a random seed to ensure freshness if supported, or just the prompt
+    full_prompt = f"{system_instruction}\n\n{user_content}"
+    
+    # We construct the URL with the prompt. 
+    # Pollinations text API: https://text.pollinations.ai/{prompt}
+    # It returns raw text.
+    print("Generating prompts via Pollinations AI...")
+    
+    try:
+        url = f"https://text.pollinations.ai/{requests.utils.quote(full_prompt)}"
+        response = requests.get(url, timeout=60)
+        response.raise_for_status()
+        text_response = response.text
+        
+        # Clean up potential markdown code blocks if the model adds them
+        text_response = text_response.strip()
+        if text_response.startswith("```json"):
+            text_response = text_response.replace("```json", "").replace("```", "")
+        
+        result = json.loads(text_response)
+        return result
+        
+    except Exception as e:
+        print(f"Pollinations API Error: {e}")
+        # Fallback dummy data if API fails
+        return {
+            "scene_prompts": [
+                {"positive": character_prompt['positive_prompt'] + ", reading news paper", "negative": character_prompt['negative_prompt']},
+                {"positive": character_prompt['positive_prompt'] + ", looking surprised", "negative": character_prompt['negative_prompt']}
+            ],
+            "title": f"ニュース: {topic_data['title'][:10]}",
+            "description": "AI生成動画です。",
+            "audio_text": "今日は新しいニュースが入ってきたワン！",
+            "subtitle_text": "今日は新しいニュースが入ってきたワン！"
+        }
