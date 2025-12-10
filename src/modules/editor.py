@@ -63,15 +63,32 @@ def create_final_video(video_paths, subtitle_text, audio_text):
         new_width = h * target_ratio
         final_clip = final_clip.crop(x1=w/2 - new_width/2, width=new_width, height=h)
     
-    # 3. 字幕生成 (エラーが出やすいのでTry-Catch)
-    # try:
-    #     # Ubuntu default font fallback
-    #     font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf' 
-    #     txt_clip = TextClip(subtitle_text, fontsize=24, color='white', font=font_path)
-    #     txt_clip = txt_clip.set_pos('bottom').set_duration(final_clip.duration)
-    #     final_clip = CompositeVideoClip([final_clip, txt_clip])
-    # except Exception as e:
-    #     print(f"Subtitle generation skipped due to error: {e}")
+    # 2. 音声生成 (gTTSを使用)
+    try:
+        from gtts import gTTS
+        tts = gTTS(text=audio_text, lang='ja')
+        tts.save("tts_output.mp3")
+        
+        audio_clip = AudioFileClip("tts_output.mp3")
+        final_clip = final_clip.set_audio(audio_clip)
+    except Exception as e:
+        print(f"Audio generation failed: {e}")
+
+    # 3. 字幕生成
+    try:
+        # Ubuntu環境で日本語フォントを使用するため、Noto Sans CJKを指定
+        # 事前に sudo apt-get install fonts-noto-cjk が必要
+        font_path = '/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc' 
+        
+        # フォントが見つからない場合のフォールバック
+        if not os.path.exists(font_path):
+             font_path = 'WenQuanYi Micro Hei' # ImageMagickの標準的な日本語対応フォント名（環境による）
+
+        txt_clip = TextClip(subtitle_text, fontsize=40, color='white', font=font_path, stroke_color='black', stroke_width=2, size=(final_clip.w * 0.9, None), method='caption')
+        txt_clip = txt_clip.set_pos(('center', 'bottom')).set_duration(final_clip.duration)
+        final_clip = CompositeVideoClip([final_clip, txt_clip])
+    except Exception as e:
+        print(f"Subtitle generation skipped due to error: {e}")
 
     output_path = "final_output.mp4"
     final_clip.write_videofile(output_path, fps=24, codec='libx264', audio_codec='aac', logger=None)
