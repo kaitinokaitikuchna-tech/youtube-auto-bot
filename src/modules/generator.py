@@ -38,10 +38,18 @@ def generate_videos(scene_prompts):
         # --- ダミー実装 START ---
         # 動作確認のため、黒味の動画などを生成またはコピーする
         dummy_filename = f"video_{i}.mp4"
-        # 実際にmp4を作るにはffmpegが必要だが、ここでは空ファイル作成のみ
-        # 本番ではURLからdownloadする処理が必要
-        with open(dummy_filename, 'wb') as f:
-            f.write(b'Dummy Video Content') 
+        
+        # MoviePyを使って有効な黒画面動画(5秒)を生成する
+        try:
+            from moviepy.editor import ColorClip
+            # 9:16の黒背景, 5秒
+            clip = ColorClip(size=(1080, 1920), color=(0, 0, 0), duration=5)
+            clip.write_videofile(dummy_filename, fps=24, logger=None)
+        except Exception as e:
+            print(f"Error creating dummy text video: {e}")
+            # フォールバック：空ファイル（これやるとEditorで落ちる可能性が高いが、MoviePyがない環境用）
+            with open(dummy_filename, 'wb') as f:
+                f.write(b'Dummy Video Content')
         
         video_paths.append(dummy_filename)
         # --- ダミー実装 END ---
